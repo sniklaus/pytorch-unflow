@@ -1,5 +1,5 @@
 # pytorch-unflow
-This is a personal reimplementation of UnFlow [1] using PyTorch. Should you be making use of this work, please cite the paper accordingly. Also, make sure to adhere to the <a href="https://github.com/simonmeister/UnFlow/blob/master/LICENSE">licensing terms</a> of the authors. Should you be making use of this particular implementation, please acknowledge it appropriately.
+This is a personal reimplementation of UnFlow [1] using PyTorch. Should you be making use of this work, please cite the paper accordingly. Also, make sure to adhere to the <a href="https://github.com/simonmeister/UnFlow/blob/master/LICENSE">licensing terms</a> of the authors. Should you be making use of this particular implementation, please acknowledge it appropriately [2].
 
 <a href="https://arxiv.org/abs/1711.07837" rel="Paper"><img src="http://www.arxiv-sanity.com/static/thumbs/1711.07837v1.pdf.jpg" alt="Paper" width="100%"></a>
 
@@ -7,7 +7,9 @@ For the original TensorFlow version of this work, please see: https://github.com
 <br />
 Another optical flow implementation from me: https://github.com/sniklaus/pytorch-pwc
 <br />
-And another optical flow implementation from me: https://github.com/sniklaus/pytorch-spynet
+And another optical flow implementation from me: https://github.com/sniklaus/pytorch-liteflownet
+<br />
+Yet another optical flow implementation from me: https://github.com/sniklaus/pytorch-spynet
 
 ## setup
 To download the pre-trained models, run `bash download.bash`. These originate from the original authors, I just converted them to PyTorch.
@@ -37,4 +39,11 @@ As stated in the <a href="https://github.com/simonmeister/UnFlow/blob/master/LIC
          booktitle = {AAAI},
          year = {2018}
      }
+
+[2]  @misc{pytorch-unflow,
+         author = {Simon Niklaus},
+         title = {A Reimplementation of {UnFlow} Using {PyTorch}},
+         year = {2018},
+         howpublished = {\url{https://github.com/sniklaus/pytorch-unflow}}
+    }
 ```
