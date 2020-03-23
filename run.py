@@ -40,19 +40,19 @@ for strOption, strArgument in getopt.getopt(sys.argv[1:], '', [ strParameter[2:]
 
 ##########################################################
 
-backwarp_tensorGrid = {}
+backwarp_tenGrid = {}
 
-def backwarp(tensorInput, tensorFlow):
-	if str(tensorFlow.size()) not in backwarp_tensorGrid:
-		tensorHorizontal = torch.linspace(-1.0, 1.0, tensorFlow.shape[3]).view(1, 1, 1, tensorFlow.shape[3]).expand(tensorFlow.shape[0], -1, tensorFlow.shape[2], -1)
-		tensorVertical = torch.linspace(-1.0, 1.0, tensorFlow.shape[2]).view(1, 1, tensorFlow.shape[2], 1).expand(tensorFlow.shape[0], -1, -1, tensorFlow.shape[3])
+def backwarp(tenInput, tenFlow):
+	if str(tenFlow.size()) not in backwarp_tenGrid:
+		tenHorizontal = torch.linspace(-1.0, 1.0, tenFlow.shape[3]).view(1, 1, 1, tenFlow.shape[3]).expand(tenFlow.shape[0], -1, tenFlow.shape[2], -1)
+		tenVertical = torch.linspace(-1.0, 1.0, tenFlow.shape[2]).view(1, 1, tenFlow.shape[2], 1).expand(tenFlow.shape[0], -1, -1, tenFlow.shape[3])
 
-		backwarp_tensorGrid[str(tensorFlow.size())] = torch.cat([ tensorHorizontal, tensorVertical ], 1).cuda()
+		backwarp_tenGrid[str(tenFlow.size())] = torch.cat([ tenHorizontal, tenVertical ], 1).cuda()
 	# end
 
-	tensorFlow = torch.cat([ tensorFlow[:, 0:1, :, :] / ((tensorInput.shape[3] - 1.0) / 2.0), tensorFlow[:, 1:2, :, :] / ((tensorInput.shape[2] - 1.0) / 2.0) ], 1)
+	tenFlow = torch.cat([ tenFlow[:, 0:1, :, :] / ((tenInput.shape[3] - 1.0) / 2.0), tenFlow[:, 1:2, :, :] / ((tenInput.shape[2] - 1.0) / 2.0) ], 1)
 
-	return torch.nn.functional.grid_sample(input=tensorInput, grid=(backwarp_tensorGrid[str(tensorFlow.size())] + tensorFlow).permute(0, 2, 3, 1), mode='bilinear', padding_mode='border', align_corners=True)
+	return torch.nn.functional.grid_sample(input=tenInput, grid=(backwarp_tenGrid[str(tenFlow.size())] + tenFlow).permute(0, 2, 3, 1), mode='bilinear', padding_mode='border', align_corners=True)
 # end
 
 ##########################################################
@@ -65,65 +65,65 @@ class Network(torch.nn.Module):
 			def __init__(self):
 				super(Upconv, self).__init__()
 
-				self.moduleSixOut = torch.nn.Conv2d(in_channels=1024, out_channels=2, kernel_size=3, stride=1, padding=1)
+				self.netSixOut = torch.nn.Conv2d(in_channels=1024, out_channels=2, kernel_size=3, stride=1, padding=1)
 
-				self.moduleSixUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
+				self.netSixUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
 
-				self.moduleFivNext = torch.nn.Sequential(
+				self.netFivNext = torch.nn.Sequential(
 					torch.nn.ConvTranspose2d(in_channels=1024, out_channels=512, kernel_size=4, stride=2, padding=1),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleFivOut = torch.nn.Conv2d(in_channels=1026, out_channels=2, kernel_size=3, stride=1, padding=1)
+				self.netFivOut = torch.nn.Conv2d(in_channels=1026, out_channels=2, kernel_size=3, stride=1, padding=1)
 
-				self.moduleFivUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
+				self.netFivUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
 
-				self.moduleFouNext = torch.nn.Sequential(
+				self.netFouNext = torch.nn.Sequential(
 					torch.nn.ConvTranspose2d(in_channels=1026, out_channels=256, kernel_size=4, stride=2, padding=1),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleFouOut = torch.nn.Conv2d(in_channels=770, out_channels=2, kernel_size=3, stride=1, padding=1)
+				self.netFouOut = torch.nn.Conv2d(in_channels=770, out_channels=2, kernel_size=3, stride=1, padding=1)
 
-				self.moduleFouUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
+				self.netFouUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
 
-				self.moduleThrNext = torch.nn.Sequential(
+				self.netThrNext = torch.nn.Sequential(
 					torch.nn.ConvTranspose2d(in_channels=770, out_channels=128, kernel_size=4, stride=2, padding=1),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleThrOut = torch.nn.Conv2d(in_channels=386, out_channels=2, kernel_size=3, stride=1, padding=1)
+				self.netThrOut = torch.nn.Conv2d(in_channels=386, out_channels=2, kernel_size=3, stride=1, padding=1)
 
-				self.moduleThrUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
+				self.netThrUp = torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=4, stride=2, padding=1)
 
-				self.moduleTwoNext = torch.nn.Sequential(
+				self.netTwoNext = torch.nn.Sequential(
 					torch.nn.ConvTranspose2d(in_channels=386, out_channels=64, kernel_size=4, stride=2, padding=1),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleTwoOut = torch.nn.Conv2d(in_channels=194, out_channels=2, kernel_size=3, stride=1, padding=1)
+				self.netTwoOut = torch.nn.Conv2d(in_channels=194, out_channels=2, kernel_size=3, stride=1, padding=1)
 
-				self.moduleUpscale = torch.nn.Sequential(
+				self.netUpscale = torch.nn.Sequential(
 					torch.nn.ConvTranspose2d(in_channels=2, out_channels=2, kernel_size=3, stride=2, padding=1, bias=False),
 					torch.nn.ReplicationPad2d(padding=[ 0, 1, 0, 1 ])
 				)
 			# end
 
-			def forward(self, tensorFirst, tensorSecond, objectInput):
-				objectOutput = {}
+			def forward(self, tenFirst, tenSecond, objInput):
+				objOutput = {}
 
-				tensorInput = objectInput['conv6']
-				objectOutput['flow6'] = self.moduleSixOut(tensorInput)
-				tensorInput = torch.cat([ objectInput['conv5'], self.moduleFivNext(tensorInput), self.moduleSixUp(objectOutput['flow6']) ], 1)
-				objectOutput['flow5'] = self.moduleFivOut(tensorInput)
-				tensorInput = torch.cat([ objectInput['conv4'], self.moduleFouNext(tensorInput), self.moduleFivUp(objectOutput['flow5']) ], 1)
-				objectOutput['flow4'] = self.moduleFouOut(tensorInput)
-				tensorInput = torch.cat([ objectInput['conv3'], self.moduleThrNext(tensorInput), self.moduleFouUp(objectOutput['flow4']) ], 1)
-				objectOutput['flow3'] = self.moduleThrOut(tensorInput)
-				tensorInput = torch.cat([ objectInput['conv2'], self.moduleTwoNext(tensorInput), self.moduleThrUp(objectOutput['flow3']) ], 1)
-				objectOutput['flow2'] = self.moduleTwoOut(tensorInput)
+				tenInput = objInput['conv6']
+				objOutput['flow6'] = self.netSixOut(tenInput)
+				tenInput = torch.cat([ objInput['conv5'], self.netFivNext(tenInput), self.netSixUp(objOutput['flow6']) ], 1)
+				objOutput['flow5'] = self.netFivOut(tenInput)
+				tenInput = torch.cat([ objInput['conv4'], self.netFouNext(tenInput), self.netFivUp(objOutput['flow5']) ], 1)
+				objOutput['flow4'] = self.netFouOut(tenInput)
+				tenInput = torch.cat([ objInput['conv3'], self.netThrNext(tenInput), self.netFouUp(objOutput['flow4']) ], 1)
+				objOutput['flow3'] = self.netThrOut(tenInput)
+				tenInput = torch.cat([ objInput['conv2'], self.netTwoNext(tenInput), self.netThrUp(objOutput['flow3']) ], 1)
+				objOutput['flow2'] = self.netTwoOut(tenInput)
 
-				return self.moduleUpscale(self.moduleUpscale(objectOutput['flow2'])) * 20.0
+				return self.netUpscale(self.netUpscale(objOutput['flow2'])) * 20.0
 			# end
 		# end
 
@@ -131,37 +131,37 @@ class Network(torch.nn.Module):
 			def __init__(self):
 				super(Complex, self).__init__()
 
-				self.moduleOne = torch.nn.Sequential(
+				self.netOne = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 2, 4, 2, 4 ]),
 					torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleTwo = torch.nn.Sequential(
+				self.netTwo = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 1, 3, 1, 3 ]),
 					torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleThr = torch.nn.Sequential(
+				self.netThr = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 1, 3, 1, 3 ]),
 					torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleRedir = torch.nn.Sequential(
+				self.netRedir = torch.nn.Sequential(
 					torch.nn.Conv2d(in_channels=256, out_channels=32, kernel_size=1, stride=1, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleCorrelation = correlation.ModuleCorrelation()
+				self.netCorrelation = correlation.ModuleCorrelation()
 
-				self.moduleCombined = torch.nn.Sequential(
+				self.netCombined = torch.nn.Sequential(
 					torch.nn.Conv2d(in_channels=473, out_channels=256, kernel_size=3, stride=1, padding=1),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleFou = torch.nn.Sequential(
+				self.netFou = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 0, 2, 0, 2 ]),
 					torch.nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -169,7 +169,7 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 				
-				self.moduleFiv = torch.nn.Sequential(
+				self.netFiv = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 0, 2, 0, 2 ]),
 					torch.nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -177,7 +177,7 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 				
-				self.moduleSix = torch.nn.Sequential(
+				self.netSix = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 0, 2, 0, 2 ]),
 					torch.nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=3, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -185,28 +185,28 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleUpconv = Upconv()
+				self.netUpconv = Upconv()
 			# end
 
-			def forward(self, tensorFirst, tensorSecond, tensorFlow):
-				objectOutput = {}
+			def forward(self, tenFirst, tenSecond, tenFlow):
+				objOutput = {}
 
-				assert(tensorFlow is None)
+				assert(tenFlow is None)
 
-				objectOutput['conv1'] = self.moduleOne(tensorFirst)
-				objectOutput['conv2'] = self.moduleTwo(objectOutput['conv1'])
-				objectOutput['conv3'] = self.moduleThr(objectOutput['conv2'])
+				objOutput['conv1'] = self.netOne(tenFirst)
+				objOutput['conv2'] = self.netTwo(objOutput['conv1'])
+				objOutput['conv3'] = self.netThr(objOutput['conv2'])
 
-				tensorRedir = self.moduleRedir(objectOutput['conv3'])
-				tensorOther = self.moduleThr(self.moduleTwo(self.moduleOne(tensorSecond)))
-				tensorCorr = self.moduleCorrelation(objectOutput['conv3'], tensorOther)
+				tenRedir = self.netRedir(objOutput['conv3'])
+				tenOther = self.netThr(self.netTwo(self.netOne(tenSecond)))
+				tenCorr = self.netCorrelation(objOutput['conv3'], tenOther)
 
-				objectOutput['conv3'] = self.moduleCombined(torch.cat([ tensorRedir, tensorCorr ], 1))
-				objectOutput['conv4'] = self.moduleFou(objectOutput['conv3'])
-				objectOutput['conv5'] = self.moduleFiv(objectOutput['conv4'])
-				objectOutput['conv6'] = self.moduleSix(objectOutput['conv5'])
+				objOutput['conv3'] = self.netCombined(torch.cat([ tenRedir, tenCorr ], 1))
+				objOutput['conv4'] = self.netFou(objOutput['conv3'])
+				objOutput['conv5'] = self.netFiv(objOutput['conv4'])
+				objOutput['conv6'] = self.netSix(objOutput['conv5'])
 
-				return self.moduleUpconv(tensorFirst, tensorSecond, objectOutput)
+				return self.netUpconv(tenFirst, tenSecond, objOutput)
 			# end
 		# end
 
@@ -214,19 +214,19 @@ class Network(torch.nn.Module):
 			def __init__(self):
 				super(Simple, self).__init__()
 
-				self.moduleOne = torch.nn.Sequential(
+				self.netOne = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 2, 4, 2, 4 ]),
 					torch.nn.Conv2d(in_channels=14, out_channels=64, kernel_size=7, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleTwo = torch.nn.Sequential(
+				self.netTwo = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 1, 3, 1, 3 ]),
 					torch.nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleThr = torch.nn.Sequential(
+				self.netThr = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 1, 3, 1, 3 ]),
 					torch.nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -234,7 +234,7 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleFou = torch.nn.Sequential(
+				self.netFou = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 0, 2, 0, 2 ]),
 					torch.nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -242,7 +242,7 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleFiv = torch.nn.Sequential(
+				self.netFiv = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 0, 2, 0, 2 ]),
 					torch.nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -250,7 +250,7 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleSix = torch.nn.Sequential(
+				self.netSix = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 0, 2, 0, 2 ]),
 					torch.nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=3, stride=2, padding=0),
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1),
@@ -258,106 +258,106 @@ class Network(torch.nn.Module):
 					torch.nn.LeakyReLU(inplace=False, negative_slope=0.1)
 				)
 
-				self.moduleUpconv = Upconv()
+				self.netUpconv = Upconv()
 			# end
 
-			def forward(self, tensorFirst, tensorSecond, tensorFlow):
-				objectOutput = {}
+			def forward(self, tenFirst, tenSecond, tenFlow):
+				objOutput = {}
 
-				tensorWarp = backwarp(tensorInput=tensorSecond, tensorFlow=tensorFlow)
+				tenWarp = backwarp(tenInput=tenSecond, tenFlow=tenFlow)
 
-				objectOutput['conv1'] = self.moduleOne(torch.cat([ tensorFirst, tensorSecond, tensorFlow, tensorWarp, (tensorFirst - tensorWarp).abs() ], 1))
-				objectOutput['conv2'] = self.moduleTwo(objectOutput['conv1'])
-				objectOutput['conv3'] = self.moduleThr(objectOutput['conv2'])
-				objectOutput['conv4'] = self.moduleFou(objectOutput['conv3'])
-				objectOutput['conv5'] = self.moduleFiv(objectOutput['conv4'])
-				objectOutput['conv6'] = self.moduleSix(objectOutput['conv5'])
+				objOutput['conv1'] = self.netOne(torch.cat([ tenFirst, tenSecond, tenFlow, tenWarp, (tenFirst - tenWarp).abs() ], 1))
+				objOutput['conv2'] = self.netTwo(objOutput['conv1'])
+				objOutput['conv3'] = self.netThr(objOutput['conv2'])
+				objOutput['conv4'] = self.netFou(objOutput['conv3'])
+				objOutput['conv5'] = self.netFiv(objOutput['conv4'])
+				objOutput['conv6'] = self.netSix(objOutput['conv5'])
 
-				return self.moduleUpconv(tensorFirst, tensorSecond, objectOutput)
+				return self.netUpconv(tenFirst, tenSecond, objOutput)
 			# end
 		# end
 
-		self.moduleFlownets = torch.nn.ModuleList([
+		self.netFlownets = torch.nn.ModuleList([
 			Complex(),
 			Simple(),
 			Simple()
 		])
 
-		self.load_state_dict(torch.load(__file__.replace('run.py', 'network-' + arguments_strModel + '.pytorch')))
+		self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load(__file__.replace('run.py', 'network-' + arguments_strModel + '.pytorch')).items() })
 	# end
 
-	def forward(self, tensorFirst, tensorSecond):
-		tensorFirst = tensorFirst[:, [ 2, 1, 0 ], :, :]
-		tensorSecond = tensorSecond[:, [ 2, 1, 0 ], :, :]
+	def forward(self, tenFirst, tenSecond):
+		tenFirst = tenFirst[:, [ 2, 1, 0 ], :, :]
+		tenSecond = tenSecond[:, [ 2, 1, 0 ], :, :]
 
-		tensorFirst[:, 0, :, :] = tensorFirst[:, 0, :, :] - (104.920005 / 255.0)
-		tensorFirst[:, 1, :, :] = tensorFirst[:, 1, :, :] - (110.175300 / 255.0)
-		tensorFirst[:, 2, :, :] = tensorFirst[:, 2, :, :] - (114.785955 / 255.0)
+		tenFirst[:, 0, :, :] = tenFirst[:, 0, :, :] - (104.920005 / 255.0)
+		tenFirst[:, 1, :, :] = tenFirst[:, 1, :, :] - (110.175300 / 255.0)
+		tenFirst[:, 2, :, :] = tenFirst[:, 2, :, :] - (114.785955 / 255.0)
 
-		tensorSecond[:, 0, :, :] = tensorSecond[:, 0, :, :] - (104.920005 / 255.0)
-		tensorSecond[:, 1, :, :] = tensorSecond[:, 1, :, :] - (110.175300 / 255.0)
-		tensorSecond[:, 2, :, :] = tensorSecond[:, 2, :, :] - (114.785955 / 255.0)
+		tenSecond[:, 0, :, :] = tenSecond[:, 0, :, :] - (104.920005 / 255.0)
+		tenSecond[:, 1, :, :] = tenSecond[:, 1, :, :] - (110.175300 / 255.0)
+		tenSecond[:, 2, :, :] = tenSecond[:, 2, :, :] - (114.785955 / 255.0)
 
-		tensorFlow = None
+		tenFlow = None
 
-		for moduleFlownet in self.moduleFlownets:
-			tensorFlow = moduleFlownet(tensorFirst, tensorSecond, tensorFlow)
+		for netFlownet in self.netFlownets:
+			tenFlow = netFlownet(tenFirst, tenSecond, tenFlow)
 		# end
 
-		return tensorFlow
+		return tenFlow
 	# end
 # end
 
-moduleNetwork = None
+netNetwork = None
 
 ##########################################################
 
-def estimate(tensorFirst, tensorSecond):
-	global moduleNetwork
+def estimate(tenFirst, tenSecond):
+	global netNetwork
 
-	if moduleNetwork is None:
-		moduleNetwork = Network().cuda().eval()
+	if netNetwork is None:
+		netNetwork = Network().cuda().eval()
 	# end
 
-	assert(tensorFirst.shape[1] == tensorSecond.shape[1])
-	assert(tensorFirst.shape[2] == tensorSecond.shape[2])
+	assert(tenFirst.shape[1] == tenSecond.shape[1])
+	assert(tenFirst.shape[2] == tenSecond.shape[2])
 
-	intWidth = tensorFirst.shape[2]
-	intHeight = tensorFirst.shape[1]
+	intWidth = tenFirst.shape[2]
+	intHeight = tenFirst.shape[1]
 
 	assert(intWidth == 1280) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
 	assert(intHeight == 384) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
 
-	tensorPreprocessedFirst = tensorFirst.cuda().view(1, 3, intHeight, intWidth)
-	tensorPreprocessedSecond = tensorSecond.cuda().view(1, 3, intHeight, intWidth)
+	tenPreprocessedFirst = tenFirst.cuda().view(1, 3, intHeight, intWidth)
+	tenPreprocessedSecond = tenSecond.cuda().view(1, 3, intHeight, intWidth)
 
 	intPreprocessedWidth = int(math.floor(math.ceil(intWidth / 64.0) * 64.0))
 	intPreprocessedHeight = int(math.floor(math.ceil(intHeight / 64.0) * 64.0))
 
-	tensorPreprocessedFirst = torch.nn.functional.interpolate(input=tensorPreprocessedFirst, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
-	tensorPreprocessedSecond = torch.nn.functional.interpolate(input=tensorPreprocessedSecond, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
+	tenPreprocessedFirst = torch.nn.functional.interpolate(input=tenPreprocessedFirst, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
+	tenPreprocessedSecond = torch.nn.functional.interpolate(input=tenPreprocessedSecond, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
 
-	tensorFlow = torch.nn.functional.interpolate(input=moduleNetwork(tensorPreprocessedFirst, tensorPreprocessedSecond), size=(intHeight, intWidth), mode='bilinear', align_corners=False)
+	tenFlow = torch.nn.functional.interpolate(input=netNetwork(tenPreprocessedFirst, tenPreprocessedSecond), size=(intHeight, intWidth), mode='bilinear', align_corners=False)
 
-	tensorFlow[:, 0, :, :] *= float(intWidth) / float(intPreprocessedWidth)
-	tensorFlow[:, 1, :, :] *= float(intHeight) / float(intPreprocessedHeight)
+	tenFlow[:, 0, :, :] *= float(intWidth) / float(intPreprocessedWidth)
+	tenFlow[:, 1, :, :] *= float(intHeight) / float(intPreprocessedHeight)
 
-	return tensorFlow[0, :, :, :].cpu()
+	return tenFlow[0, :, :, :].cpu()
 # end
 
 ##########################################################
 
 if __name__ == '__main__':
-	tensorFirst = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_strFirst))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
-	tensorSecond = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_strSecond))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
+	tenFirst = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_strFirst))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
+	tenSecond = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_strSecond))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
 
-	tensorOutput = estimate(tensorFirst, tensorSecond)
+	tenOutput = estimate(tenFirst, tenSecond)
 
-	objectOutput = open(arguments_strOut, 'wb')
+	objOutput = open(arguments_strOut, 'wb')
 
-	numpy.array([ 80, 73, 69, 72 ], numpy.uint8).tofile(objectOutput)
-	numpy.array([ tensorOutput.shape[2], tensorOutput.shape[1] ], numpy.int32).tofile(objectOutput)
-	numpy.array(tensorOutput.numpy().transpose(1, 2, 0), numpy.float32).tofile(objectOutput)
+	numpy.array([ 80, 73, 69, 72 ], numpy.uint8).tofile(objOutput)
+	numpy.array([ tenOutput.shape[2], tenOutput.shape[1] ], numpy.int32).tofile(objOutput)
+	numpy.array(tenOutput.numpy().transpose(1, 2, 0), numpy.float32).tofile(objOutput)
 
-	objectOutput.close()
+	objOutput.close()
 # end
