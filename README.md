@@ -5,11 +5,7 @@ This is a personal reimplementation of UnFlow [1] using PyTorch. Should you be m
 
 For the original TensorFlow version of this work, please see: https://github.com/simonmeister/UnFlow
 <br />
-Another optical flow implementation from me: https://github.com/sniklaus/pytorch-pwc
-<br />
-And another optical flow implementation from me: https://github.com/sniklaus/pytorch-liteflownet
-<br />
-Yet another optical flow implementation from me: https://github.com/sniklaus/pytorch-spynet
+Other optical flow implementations from me: [pytorch-pwc](https://github.com/sniklaus/pytorch-pwc), [pytorch-spynet](https://github.com/sniklaus/pytorch-spynet), [pytorch-liteflownet](https://github.com/sniklaus/pytorch-liteflownet)
 
 ## setup
 The correlation layer is implemented in CUDA using CuPy, which is why CuPy is a required dependency. It can be installed using `pip install cupy` or alternatively using one of the provided [binary packages](https://docs.cupy.dev/en/stable/install.html#installing-cupy) as outlined in the CuPy repository.
