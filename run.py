@@ -27,14 +27,14 @@ torch.backends.cudnn.enabled = True # make sure to use cudnn for computational p
 ##########################################################
 
 arguments_strModel = 'css' # 'css', or 'css-synthia'
-arguments_strFirst = './images/first.png'
-arguments_strSecond = './images/second.png'
+arguments_strOne = './images/one.png'
+arguments_strTwo = './images/two.png'
 arguments_strOut = './out.flo'
 
 for strOption, strArgument in getopt.getopt(sys.argv[1:], '', [ strParameter[2:] + '=' for strParameter in sys.argv[1::2] ])[0]:
 	if strOption == '--model' and strArgument != '': arguments_strModel = strArgument # which model to use
-	if strOption == '--first' and strArgument != '': arguments_strFirst = strArgument # path to the first frame
-	if strOption == '--second' and strArgument != '': arguments_strSecond = strArgument # path to the second frame
+	if strOption == '--one' and strArgument != '': arguments_strOne = strArgument # path to the first frame
+	if strOption == '--two' and strArgument != '': arguments_strTwo = strArgument # path to the second frame
 	if strOption == '--out' and strArgument != '': arguments_strOut = strArgument # path to where the output should be stored
 # end
 
@@ -59,11 +59,11 @@ def backwarp(tenInput, tenFlow):
 
 class Network(torch.nn.Module):
 	def __init__(self):
-		super(Network, self).__init__()
+		super().__init__()
 
 		class Upconv(torch.nn.Module):
 			def __init__(self):
-				super(Upconv, self).__init__()
+				super().__init__()
 
 				self.netSixOut = torch.nn.Conv2d(in_channels=1024, out_channels=2, kernel_size=3, stride=1, padding=1)
 
@@ -109,7 +109,7 @@ class Network(torch.nn.Module):
 				)
 			# end
 
-			def forward(self, tenFirst, tenSecond, objInput):
+			def forward(self, tenOne, tenTwo, objInput):
 				objOutput = {}
 
 				tenInput = objInput['conv6']
@@ -129,7 +129,7 @@ class Network(torch.nn.Module):
 
 		class Complex(torch.nn.Module):
 			def __init__(self):
-				super(Complex, self).__init__()
+				super().__init__()
 
 				self.netOne = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 2, 4, 2, 4 ]),
@@ -188,17 +188,17 @@ class Network(torch.nn.Module):
 				self.netUpconv = Upconv()
 			# end
 
-			def forward(self, tenFirst, tenSecond, tenFlow):
+			def forward(self, tenOne, tenTwo, tenFlow):
 				objOutput = {}
 
 				assert(tenFlow is None)
 
-				objOutput['conv1'] = self.netOne(tenFirst)
+				objOutput['conv1'] = self.netOne(tenOne)
 				objOutput['conv2'] = self.netTwo(objOutput['conv1'])
 				objOutput['conv3'] = self.netThr(objOutput['conv2'])
 
 				tenRedir = self.netRedir(objOutput['conv3'])
-				tenOther = self.netThr(self.netTwo(self.netOne(tenSecond)))
+				tenOther = self.netThr(self.netTwo(self.netOne(tenTwo)))
 				tenCorr = self.netCorrelation(objOutput['conv3'], tenOther)
 
 				objOutput['conv3'] = self.netCombined(torch.cat([ tenRedir, tenCorr ], 1))
@@ -206,13 +206,13 @@ class Network(torch.nn.Module):
 				objOutput['conv5'] = self.netFiv(objOutput['conv4'])
 				objOutput['conv6'] = self.netSix(objOutput['conv5'])
 
-				return self.netUpconv(tenFirst, tenSecond, objOutput)
+				return self.netUpconv(tenOne, tenTwo, objOutput)
 			# end
 		# end
 
 		class Simple(torch.nn.Module):
 			def __init__(self):
-				super(Simple, self).__init__()
+				super().__init__()
 
 				self.netOne = torch.nn.Sequential(
 					torch.nn.ZeroPad2d([ 2, 4, 2, 4 ]),
@@ -261,19 +261,19 @@ class Network(torch.nn.Module):
 				self.netUpconv = Upconv()
 			# end
 
-			def forward(self, tenFirst, tenSecond, tenFlow):
+			def forward(self, tenOne, tenTwo, tenFlow):
 				objOutput = {}
 
-				tenWarp = backwarp(tenInput=tenSecond, tenFlow=tenFlow)
+				tenWarp = backwarp(tenInput=tenTwo, tenFlow=tenFlow)
 
-				objOutput['conv1'] = self.netOne(torch.cat([ tenFirst, tenSecond, tenFlow, tenWarp, (tenFirst - tenWarp).abs() ], 1))
+				objOutput['conv1'] = self.netOne(torch.cat([ tenOne, tenTwo, tenFlow, tenWarp, (tenOne - tenWarp).abs() ], 1))
 				objOutput['conv2'] = self.netTwo(objOutput['conv1'])
 				objOutput['conv3'] = self.netThr(objOutput['conv2'])
 				objOutput['conv4'] = self.netFou(objOutput['conv3'])
 				objOutput['conv5'] = self.netFiv(objOutput['conv4'])
 				objOutput['conv6'] = self.netSix(objOutput['conv5'])
 
-				return self.netUpconv(tenFirst, tenSecond, objOutput)
+				return self.netUpconv(tenOne, tenTwo, objOutput)
 			# end
 		# end
 
@@ -286,22 +286,22 @@ class Network(torch.nn.Module):
 		self.load_state_dict({ strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.hub.load_state_dict_from_url(url='http://content.sniklaus.com/github/pytorch-unflow/network-' + arguments_strModel + '.pytorch', file_name='unflow-' + arguments_strModel).items() })
 	# end
 
-	def forward(self, tenFirst, tenSecond):
-		tenFirst = tenFirst[:, [ 2, 1, 0 ], :, :]
-		tenSecond = tenSecond[:, [ 2, 1, 0 ], :, :]
+	def forward(self, tenOne, tenTwo):
+		tenOne = tenOne[:, [ 2, 1, 0 ], :, :]
+		tenTwo = tenTwo[:, [ 2, 1, 0 ], :, :]
 
-		tenFirst[:, 0, :, :] = tenFirst[:, 0, :, :] - (104.920005 / 255.0)
-		tenFirst[:, 1, :, :] = tenFirst[:, 1, :, :] - (110.175300 / 255.0)
-		tenFirst[:, 2, :, :] = tenFirst[:, 2, :, :] - (114.785955 / 255.0)
+		tenOne[:, 0, :, :] = tenOne[:, 0, :, :] - (104.920005 / 255.0)
+		tenOne[:, 1, :, :] = tenOne[:, 1, :, :] - (110.175300 / 255.0)
+		tenOne[:, 2, :, :] = tenOne[:, 2, :, :] - (114.785955 / 255.0)
 
-		tenSecond[:, 0, :, :] = tenSecond[:, 0, :, :] - (104.920005 / 255.0)
-		tenSecond[:, 1, :, :] = tenSecond[:, 1, :, :] - (110.175300 / 255.0)
-		tenSecond[:, 2, :, :] = tenSecond[:, 2, :, :] - (114.785955 / 255.0)
+		tenTwo[:, 0, :, :] = tenTwo[:, 0, :, :] - (104.920005 / 255.0)
+		tenTwo[:, 1, :, :] = tenTwo[:, 1, :, :] - (110.175300 / 255.0)
+		tenTwo[:, 2, :, :] = tenTwo[:, 2, :, :] - (114.785955 / 255.0)
 
 		tenFlow = None
 
 		for netFlownet in self.netFlownets:
-			tenFlow = netFlownet(tenFirst, tenSecond, tenFlow)
+			tenFlow = netFlownet(tenOne, tenTwo, tenFlow)
 		# end
 
 		return tenFlow
@@ -312,32 +312,32 @@ netNetwork = None
 
 ##########################################################
 
-def estimate(tenFirst, tenSecond):
+def estimate(tenOne, tenTwo):
 	global netNetwork
 
 	if netNetwork is None:
 		netNetwork = Network().cuda().eval()
 	# end
 
-	assert(tenFirst.shape[1] == tenSecond.shape[1])
-	assert(tenFirst.shape[2] == tenSecond.shape[2])
+	assert(tenOne.shape[1] == tenTwo.shape[1])
+	assert(tenOne.shape[2] == tenTwo.shape[2])
 
-	intWidth = tenFirst.shape[2]
-	intHeight = tenFirst.shape[1]
+	intWidth = tenOne.shape[2]
+	intHeight = tenOne.shape[1]
 
 	assert(intWidth == 1280) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
 	assert(intHeight == 384) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
 
-	tenPreprocessedFirst = tenFirst.cuda().view(1, 3, intHeight, intWidth)
-	tenPreprocessedSecond = tenSecond.cuda().view(1, 3, intHeight, intWidth)
+	tenPreprocessedOne = tenOne.cuda().view(1, 3, intHeight, intWidth)
+	tenPreprocessedTwo = tenTwo.cuda().view(1, 3, intHeight, intWidth)
 
 	intPreprocessedWidth = int(math.floor(math.ceil(intWidth / 64.0) * 64.0))
 	intPreprocessedHeight = int(math.floor(math.ceil(intHeight / 64.0) * 64.0))
 
-	tenPreprocessedFirst = torch.nn.functional.interpolate(input=tenPreprocessedFirst, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
-	tenPreprocessedSecond = torch.nn.functional.interpolate(input=tenPreprocessedSecond, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
+	tenPreprocessedOne = torch.nn.functional.interpolate(input=tenPreprocessedOne, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
+	tenPreprocessedTwo = torch.nn.functional.interpolate(input=tenPreprocessedTwo, size=(intPreprocessedHeight, intPreprocessedWidth), mode='bilinear', align_corners=False)
 
-	tenFlow = torch.nn.functional.interpolate(input=netNetwork(tenPreprocessedFirst, tenPreprocessedSecond), size=(intHeight, intWidth), mode='bilinear', align_corners=False)
+	tenFlow = torch.nn.functional.interpolate(input=netNetwork(tenPreprocessedOne, tenPreprocessedTwo), size=(intHeight, intWidth), mode='bilinear', align_corners=False)
 
 	tenFlow[:, 0, :, :] *= float(intWidth) / float(intPreprocessedWidth)
 	tenFlow[:, 1, :, :] *= float(intHeight) / float(intPreprocessedHeight)
@@ -348,10 +348,10 @@ def estimate(tenFirst, tenSecond):
 ##########################################################
 
 if __name__ == '__main__':
-	tenFirst = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strFirst))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
-	tenSecond = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strSecond))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
+	tenOne = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strOne))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
+	tenTwo = torch.FloatTensor(numpy.ascontiguousarray(numpy.array(PIL.Image.open(arguments_strTwo))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)))
 
-	tenOutput = estimate(tenFirst, tenSecond)
+	tenOutput = estimate(tenOne, tenTwo)
 
 	objOutput = open(arguments_strOut, 'wb')
 
