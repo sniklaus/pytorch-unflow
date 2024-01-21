@@ -271,61 +271,63 @@ def cupy_kernel(strFunction, objVariables):
 
 @cupy.memoize(for_each_device=True)
 def cupy_launch(strFunction, strKernel):
-    return cupy.cuda.compile_with_cache(strKernel).get_function(strFunction)
+    return cupy.RawModule(code=strKernel).get_function(strFunction)
 # end
 
 class _FunctionCorrelation(torch.autograd.Function):
     @staticmethod
     def forward(self, one, two):
-        rbot0 = one.new_zeros([ one.shape[0], one.shape[2] + 40, one.shape[3] + 40, one.shape[1] ])
-        rbot1 = one.new_zeros([ one.shape[0], one.shape[2] + 40, one.shape[3] + 40, one.shape[1] ])
+        dev = cupy.cuda.Device(one.device.index)
+        with dev:
+          rbot0 = one.new_zeros([ one.shape[0], one.shape[2] + 40, one.shape[3] + 40, one.shape[1] ])
+          rbot1 = one.new_zeros([ one.shape[0], one.shape[2] + 40, one.shape[3] + 40, one.shape[1] ])
 
-        one = one.contiguous(); assert(one.is_cuda == True)
-        two = two.contiguous(); assert(two.is_cuda == True)
+          one = one.contiguous(); assert(one.is_cuda == True)
+          two = two.contiguous(); assert(two.is_cuda == True)
 
-        output = one.new_zeros([ one.shape[0], 441, one.shape[2], one.shape[3] ])
+          output = one.new_zeros([ one.shape[0], 441, one.shape[2], one.shape[3] ])
 
-        if one.is_cuda == True:
-            n = one.shape[2] * one.shape[3]
-            cupy_launch('kernel_Correlation_rearrange', cupy_kernel('kernel_Correlation_rearrange', {
-                'input': one,
-                'output': rbot0
-            }))(
-                grid=tuple([ int((n + 16 - 1) / 16), one.shape[1], one.shape[0] ]),
-                block=tuple([ 16, 1, 1 ]),
-                args=[ cupy.int32(n), one.data_ptr(), rbot0.data_ptr() ]
-            )
+          if one.is_cuda == True:
+              n = one.shape[2] * one.shape[3]
+              cupy_launch('kernel_Correlation_rearrange', cupy_kernel('kernel_Correlation_rearrange', {
+                  'input': one,
+                  'output': rbot0
+              }))(
+                  grid=tuple([ int((n + 16 - 1) / 16), one.shape[1], one.shape[0] ]),
+                  block=tuple([ 16, 1, 1 ]),
+                  args=[ cupy.int32(n), one.data_ptr(), rbot0.data_ptr() ]
+              )
 
-            n = two.shape[2] * two.shape[3]
-            cupy_launch('kernel_Correlation_rearrange', cupy_kernel('kernel_Correlation_rearrange', {
-                'input': two,
-                'output': rbot1
-            }))(
-                grid=tuple([ int((n + 16 - 1) / 16), two.shape[1], two.shape[0] ]),
-                block=tuple([ 16, 1, 1 ]),
-                args=[ cupy.int32(n), two.data_ptr(), rbot1.data_ptr() ]
-            )
+              n = two.shape[2] * two.shape[3]
+              cupy_launch('kernel_Correlation_rearrange', cupy_kernel('kernel_Correlation_rearrange', {
+                  'input': two,
+                  'output': rbot1
+              }))(
+                  grid=tuple([ int((n + 16 - 1) / 16), two.shape[1], two.shape[0] ]),
+                  block=tuple([ 16, 1, 1 ]),
+                  args=[ cupy.int32(n), two.data_ptr(), rbot1.data_ptr() ]
+              )
 
-            n = output.shape[1] * output.shape[2] * output.shape[3]
-            cupy_launch('kernel_Correlation_updateOutput', cupy_kernel('kernel_Correlation_updateOutput', {
-                'rbot0': rbot0,
-                'rbot1': rbot1,
-                'top': output
-            }))(
-                grid=tuple([ output.shape[3], output.shape[2], output.shape[0] ]),
-                block=tuple([ 32, 1, 1 ]),
-                shared_mem=one.shape[1] * 4,
-                args=[ cupy.int32(n), rbot0.data_ptr(), rbot1.data_ptr(), output.data_ptr() ]
-            )
+              n = output.shape[1] * output.shape[2] * output.shape[3]
+              cupy_launch('kernel_Correlation_updateOutput', cupy_kernel('kernel_Correlation_updateOutput', {
+                  'rbot0': rbot0,
+                  'rbot1': rbot1,
+                  'top': output
+              }))(
+                  grid=tuple([ output.shape[3], output.shape[2], output.shape[0] ]),
+                  block=tuple([ 32, 1, 1 ]),
+                  shared_mem=one.shape[1] * 4,
+                  args=[ cupy.int32(n), rbot0.data_ptr(), rbot1.data_ptr(), output.data_ptr() ]
+              )
 
-        elif one.is_cuda == False:
-            raise NotImplementedError()
+          elif one.is_cuda == False:
+              raise NotImplementedError()
 
-        # end
+          # end
 
-        self.save_for_backward(one, two, rbot0, rbot1)
+          self.save_for_backward(one, two, rbot0, rbot1)
 
-        return output
+          return output
     # end
 
     @staticmethod
